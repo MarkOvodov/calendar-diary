@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Переменные окружения
+.env
+
+# Node.js
+diary-frontend/node_modules/
+diary-frontend/dist/
+diary-frontend/dist-ssr/
+*.local
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+
+# macOS
+.DS_Store
+
+# Windows
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
