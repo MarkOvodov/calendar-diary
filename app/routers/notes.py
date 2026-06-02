@@ -110,27 +110,50 @@ async def update_note(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Обновить заметку — пишет запись в diary.changes.
-    Оригинальная заметка не меняется, actual_notes покажет актуальную версию.
+    Обновить заметку — пишет запись в diary.changes с полным состоянием.
+    Запись создаётся только если хотя бы одно поле реально изменилось.
     """
     result = await db.execute(select(Note).where(Note.id == note_id))
     note = result.scalar_one_or_none()
     if note is None:
         raise HTTPException(status_code=404, detail="Заметка не найдена")
 
+    # читаем актуальное состояние (с учётом предыдущих изменений)
+    actual_result = await db.execute(select(ActualNote).where(ActualNote.id == note_id))
+    current = actual_result.scalar_one()
+
+    # вычисляем новое полное состояние
+    new_title = data.new_title if data.new_title is not None else current.title
+    new_content = data.new_content if data.new_content is not None else current.content
+    new_time_starting = data.new_time_starting if data.new_time_starting is not None else current.time_starting
+    new_time_ending = data.new_time_ending if data.new_time_ending is not None else current.time_ending
+
+    # проверяем что хотя бы одно поле реально изменилось
+    fields_changed = (
+        new_title != current.title
+        or new_content != current.content
+        or new_time_starting != current.time_starting
+        or new_time_ending != current.time_ending
+    )
+
+    if not fields_changed and data.tag_ids is None:
+        raise HTTPException(status_code=400, detail="Нет изменений")
+
+    # обновляем теги если переданы
     if data.tag_ids is not None:
         await db.execute(delete(NoteTag).where(NoteTag.note_id == note_id))
         for tag_id in data.tag_ids:
             db.add(NoteTag(note_id=note_id, tag_id=tag_id))
 
+    # сохраняем изменение с полным состоянием всех полей
     change = None
-    if any([data.new_title, data.new_content, data.new_time_starting, data.new_time_ending]):
+    if fields_changed:
         change = Change(
             note_id=note_id,
-            new_title=data.new_title,
-            new_content=data.new_content,
-            new_time_starting=data.new_time_starting,
-            new_time_ending=data.new_time_ending,
+            new_title=new_title,
+            new_content=new_content,
+            new_time_starting=new_time_starting,
+            new_time_ending=new_time_ending,
         )
         db.add(change)
 
