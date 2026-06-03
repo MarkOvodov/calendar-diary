@@ -1,11 +1,20 @@
 import { useState, useEffect } from "react"
 import { getNotes, getTags } from "../api.js"
 import TagFilter from "./TagFilter.jsx"
+import {
+  PX_PER_MIN_ACTIVE, PX_PER_MIN_EMPTY, MIN_SEGMENT_HEIGHT,
+  GRID_PADDING_Y, GRID_LINE_VERTICAL, GRID_LINE_HOUR, GRID_LINE_NOTE,
+  GRID_LINE_HOUR_OPACITY, GRID_LINE_NOTE_OPACITY,
+  NOTE_MARGIN_X, NOTE_MARGIN_TOP, NOTE_PADDING, NOTE_BORDER_RADIUS,
+  NOTE_BORDER_LEFT, EVENT_BORDER_LEFT, NOTE_MIN_HEIGHT,
+  NOTE_CONTENT_MIN_HEIGHT, NOTE_FONT_TITLE, NOTE_FONT_TAGS,
+  NOTE_FONT_CONTENT, TIME_COLUMN_WIDTH, PAGE_PADDING,
+} from "../constants.js"
 
 const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-const PX_ACTIVE = 2.5   // px per minute когда есть заметки
-const PX_EMPTY  = 1.5   // px per minute для пустых промежутков
-const MIN_SEG_H = 10    // минимальная высота сегмента
+const PX_ACTIVE = PX_PER_MIN_ACTIVE
+const PX_EMPTY  = PX_PER_MIN_EMPTY
+const MIN_SEG_H = MIN_SEGMENT_HEIGHT
 
 function getISOWeek(date) {
   const d = new Date(date)
@@ -137,7 +146,7 @@ export default function WeekView({ onSelectNote }) {
 
       <div className="week-wrap" style={{ overflowX: "auto" }}>
         {/* Заголовок */}
-        <div style={{ display: "grid", gridTemplateColumns: "52px repeat(7, 1fr)", borderBottom: "0.5px solid var(--tb2)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, 1fr)`, borderBottom: "0.5px solid var(--tb2)" }}>
           <div style={{ background: "var(--ts)" }} />
           {DAYS.map(d => (
             <div key={d} style={{ padding: "8px 4px", fontSize: 12, fontWeight: 500, color: "var(--tm)", background: "var(--ts)", borderLeft: "0.5px solid var(--tb2)", textAlign: "center" }}>
@@ -147,12 +156,12 @@ export default function WeekView({ onSelectNote }) {
         </div>
 
         {/* Сетка */}
-        <div style={{ display: "grid", gridTemplateColumns: "52px repeat(7, 1fr)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, 1fr)` }}>
 
           {/* Шкала времени */}
-          <div style={{ position: "relative", height: totalH, background: "var(--ts)", borderRight: "0.5px solid var(--tb2)" }}>
+          <div style={{ position: "relative", height: totalH + GRID_PADDING_Y * 2, paddingTop: GRID_PADDING_Y, paddingBottom: GRID_PADDING_Y, background: "var(--ts)", borderRight: `${GRID_LINE_VERTICAL} solid var(--tb2)` }}>
             {labels.map(m => (
-              <div key={m} style={{ position: "absolute", top: toY(m, segs), right: 6, fontSize: 10, color: "var(--tm)", transform: "translateY(-50%)", whiteSpace: "nowrap", lineHeight: 1 }}>
+              <div key={m} style={{ position: "absolute", top: toY(m, segs) + GRID_PADDING_Y, right: 6, fontSize: NOTE_FONT_CONTENT, color: "var(--tm)", transform: "translateY(-50%)", whiteSpace: "nowrap", lineHeight: 1 }}>
                 {fmtMin(m)}
               </div>
             ))}
@@ -160,18 +169,29 @@ export default function WeekView({ onSelectNote }) {
 
           {/* Столбцы дней */}
           {Array.from({ length: 7 }, (_, d) => (
-            <div key={d} style={{ position: "relative", height: totalH, borderLeft: "0.5px solid var(--tb2)" }}>
-              {/* Линии сетки */}
-              {labels.map(m => (
-                <div key={m} style={{ position: "absolute", top: toY(m, segs), left: 0, right: 0, height: "0.5px", background: "var(--tb2)" }} />
-              ))}
+            <div key={d} style={{ position: "relative", height: totalH + GRID_PADDING_Y * 2, paddingTop: GRID_PADDING_Y, paddingBottom: GRID_PADDING_Y, borderLeft: `${GRID_LINE_VERTICAL} solid var(--tb2)` }}>
+              {/* Линии сетки: часы жирнее, границы заметок тоньше */}
+              {labels.map(m => {
+                const isHour = m % 60 === 0
+                return (
+                  <div key={m} style={{
+                    position: "absolute",
+                    top: toY(m, segs) + GRID_PADDING_Y,
+                    left: 0, right: 0,
+                    height: isHour ? GRID_LINE_HOUR : GRID_LINE_NOTE,
+                    background: "var(--tb2)",
+                    opacity: isHour ? GRID_LINE_HOUR_OPACITY : GRID_LINE_NOTE_OPACITY,
+                  }} />
+                )
+              })}
 
               {/* Заметки */}
               {byDay[d].map(note => {
                 const sm    = toMin(note.time_starting)
                 const em    = note.time_ending ? toMin(note.time_ending) : null
-                const top   = toY(sm, segs)
-                const bot   = em ? toY(em, segs) : top + 40
+                const top   = toY(sm, segs) + GRID_PADDING_Y
+                const bot   = em ? toY(em, segs) + GRID_PADDING_Y : top + 40
+                const h     = Math.max(bot - top - 4, NOTE_MIN_HEIGHT)
                 const isEv  = !!note.time_ending
 
                 return (
@@ -180,22 +200,27 @@ export default function WeekView({ onSelectNote }) {
                     onClick={() => onSelectNote(note)}
                     style={{
                       position: "absolute",
-                      top: top + 2,
-                      left: 3,
-                      right: 3,
-                      height: Math.max(bot - top - 4, 22),
+                      top: top + NOTE_MARGIN_TOP,
+                      left: NOTE_MARGIN_X,
+                      right: NOTE_MARGIN_X,
+                      height: h,
                       background: "var(--ts)",
                       border: `0.5px solid ${isEv ? "var(--ta)" : "var(--tb2)"}`,
-                      borderLeft: `${isEv ? 3 : 2}px solid var(--ta)`,
-                      borderRadius: 4,
-                      padding: "3px 5px",
+                      borderLeft: `${isEv ? EVENT_BORDER_LEFT : NOTE_BORDER_LEFT}px solid var(--ta)`,
+                      borderRadius: NOTE_BORDER_RADIUS,
+                      padding: NOTE_PADDING,
                       cursor: "pointer",
                       overflow: "hidden",
                       boxSizing: "border-box",
                     }}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 500, color: "var(--tt)", lineHeight: 1.3 }}>{note.title}</div>
-                    {note.tags && <div style={{ fontSize: 9, color: "var(--tm)" }}>{note.tags}</div>}
+                    <div style={{ fontSize: NOTE_FONT_TITLE, fontWeight: 500, color: "var(--tt)", lineHeight: 1.3 }}>{note.title}</div>
+                    {note.tags && <div style={{ fontSize: NOTE_FONT_TAGS, color: "var(--tm)" }}>{note.tags}</div>}
+                    {note.content && h > NOTE_CONTENT_MIN_HEIGHT && (
+                      <div style={{ fontSize: NOTE_FONT_CONTENT, color: "var(--tm)", lineHeight: 1.4, marginTop: 2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: Math.floor((h - 38) / 14), WebkitBoxOrient: "vertical" }}>
+                        {note.content}
+                      </div>
+                    )}
                   </div>
                 )
               })}

@@ -16,7 +16,15 @@ const THEMES = [
 export default function App() {
   const [page, setPage] = useState("week")
   const [selectedNote, setSelectedNote] = useState(null)
-  const [theme, setTheme] = useState(0)
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("diary-theme")
+    return saved !== null ? Number(saved) : 0
+  })
+
+  function changeTheme(i) {
+    setTheme(i)
+    localStorage.setItem("diary-theme", i)
+  }
 
   function openNote(note) {
     setSelectedNote(note)
@@ -41,7 +49,7 @@ export default function App() {
               key={t.key}
               className={`theme-dot${theme === i ? " active" : ""}`}
               style={{ background: t.bg, border: `2px solid ${theme === i ? t.accent : "transparent"}` }}
-              onClick={() => setTheme(i)}
+              onClick={() => changeTheme(i)}
             >
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent }} />
             </div>
